@@ -1,6 +1,34 @@
 ﻿using UnityEngine;
 using System.Collections;
 
+[System.Serializable]
+public class CAnimState
+{
+	public	string	name	= "default";
+	public	int		start	= 0;
+	public	int		end		= 0;
+	public	int		index	= 0;
+	public	Vector3	pos		= Vector3.zero;
+	public	float	time	= 0.025f;
+	public	CTimer	timer;
+
+	public void Init()
+	{
+		timer = new CTimer();
+		timer.Start( time );
+		timer.loop = true;
+		index = start;
+	}
+
+	public void Update( float dt )
+	{
+		if ( timer.Update( dt ) )
+		{
+			index = ++index >= end ? start : index;
+		}
+	}
+}
+
 public class AdvanceParticleRenderer : MonoBehaviour
 {
 	private	ParticleSystem					particlesSystem;
@@ -10,18 +38,16 @@ public class AdvanceParticleRenderer : MonoBehaviour
 	public	int								particlesEmitCount = 10;
 	private	float							particleDeltaLife;
 	private	int								currentParticleIndex = 0;
-	
-	private	CTimer							animDelay;
-	
+
+	public	int								showState = 0;
+	public	CAnimState[]					states;
+
 	public void Awake()
 	{
-		base.Awake();
 		gameObject.SetActive( true );
 		
 		particlesSystem = GetComponent<ParticleSystem>();
 		particles = new ParticleSystem.Particle[ 100 ];
-		
-		animDelay = new CTimer( delay, false );
 	}
 	
 	void Start () 
@@ -30,29 +56,14 @@ public class AdvanceParticleRenderer : MonoBehaviour
 		particlesSystem.Emit( particlesEmitCount );
 		particlesSystem.GetParticles( particles );
 		particleDeltaLife = maxLife / frameCount;
-		
-		animDelay.Start( delay );
-	}
 
-	#if UNITY_EDITOR
-	public void Update()
-	{
-		#if UNITY_EDITOR
-		if ( autoCreateStates )
+		SetParticlesCount( states.Length );
+		for ( int i = 0; i < states.Length; i++ )
 		{
-			autoCreateStates = false;
-			//CreateStates( simpleHolder );
+			CAnimState s = states[ i ];
+			s.Init();
 		}
-		#endif
-		
-		animDelay.Update( Find.dt );
 	}
-	
-	public void FixedUpdate () 
-	{
-		
-	}
-	#endif
 	
 	public void SetParticlesCount( int count )
 	{
@@ -70,17 +81,10 @@ public class AdvanceParticleRenderer : MonoBehaviour
 		currentParticleIndex = 0;
 	}
 	
-	public void SetNextParticle( Vector3 position, int animStateIndex, ref int currentAnimIndex )
+	public void SetNextParticle( Vector3 position, int currentAnimIndex )
 	{
 		particles[ currentParticleIndex ].position = position;
-		currentAnimIndex++;
-		if( currentAnimIndex > states[ animStateIndex ].end )
-		{
-			currentAnimIndex = states[ animStateIndex ].start;
-		}
 		particles[ currentParticleIndex ].lifetime = maxLife - ( currentAnimIndex * particleDeltaLife );
-		
-		animDelay.Start( delay );
 		
 		currentParticleIndex++;
 	}
@@ -88,5 +92,19 @@ public class AdvanceParticleRenderer : MonoBehaviour
 	public void SetParticlesArray()
 	{
 		particlesSystem.SetParticles( particles, currentParticleIndex );
+	}
+
+	void FixedUpdate()
+	{
+		GetParticlesArray();
+
+		for ( int i = 0; i < states.Length; i++ )
+		{
+			CAnimState s = states[ i ];
+			s.Update( Time.fixedDeltaTime );
+			SetNextParticle( s.pos, s.index );
+		}
+
+		SetParticlesArray();
 	}
 }
