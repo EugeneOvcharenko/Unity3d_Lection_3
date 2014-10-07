@@ -25,16 +25,33 @@ public class FrameAmination : MonoBehaviour {
 	public	AnimationCurve	curve_texture;
 	public	AnimationCurve	curve_sprites;
 	public	AnimationCurve	curve_meshes;
+
+	private	CObjectPool		objectPoolParent;
+	private	int				objectPoolNumber;
+	public	bool			autoDestroy	= false;
+
 	
 	void Start () {
-		timer = new CTimer();
-
-		timer.Start( animTime );
-		timer.loop = true;
 
 		index_textures = 0;
 		index_sprites = 0;
 		index_meshes = 0;
+	}
+
+	public void Play()
+	{
+		if ( timer == null )
+		{
+			timer = new CTimer();
+		}
+		timer.loop = true;
+		timer.Start( animTime );
+	}
+
+	public void SetupObjectPool( CObjectPool p, int n )
+	{
+		objectPoolParent = p;
+		objectPoolNumber = n;
 	}
 	
 	void Update () {
@@ -67,12 +84,29 @@ public class FrameAmination : MonoBehaviour {
 
 			if ( animate_sprites )
 			{
-				index_sprites = ++index_sprites >= sprites.Length ? 0 : index_sprites;
-				idx = Mathf.Min( Mathf.RoundToInt( (float)sprites.Length * curve_sprites.Evaluate( (float)index_sprites / (float)sprites.Length ) ), sprites.Length - 1 );
-				idx = Mathf.Max( 0, idx );
-				if ( rSprite != null )
+				index_sprites++;
+
+				if ( index_sprites >= sprites.Length )
 				{
-					rSprite.sprite = sprites[ idx ];
+					index_sprites = 0;
+					if ( objectPoolParent != null )
+					{
+						objectPoolParent.SwitchOffAnimation( objectPoolNumber );
+					}
+
+					if ( autoDestroy )
+					{
+						Destroy( gameObject );
+					}
+				}
+				else
+				{
+					idx = Mathf.Min( Mathf.RoundToInt( (float)sprites.Length * curve_sprites.Evaluate( (float)index_sprites / (float)sprites.Length ) ), sprites.Length - 1 );
+					idx = Mathf.Max( 0, idx );
+					if ( rSprite != null )
+					{
+						rSprite.sprite = sprites[ idx ];
+					}
 				}
 			}
 		}
